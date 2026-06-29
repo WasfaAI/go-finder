@@ -1,4 +1,4 @@
-module github.com/m-row/finder
+module github.com/WasfaAI/go-finder
 
 go 1.24.0
 
