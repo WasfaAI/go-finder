@@ -14,6 +14,10 @@ Set `ConfigIndex.DisableDefaultGroupBy` to `true` when every configured join is
 known to return at most one row per model and index-friendly pagination is
 required. Supplying `GroupBys` explicitly continues to take precedence.
 
+Set `ConfigIndex.RawTotal` when the caller already computed the unfiltered
+total. Finder uses that value in pagination metadata and skips its duplicate
+raw-total query.
+
 ## CRUD - common operations
 
 additionally there are postgres queries built to operate on one row and return

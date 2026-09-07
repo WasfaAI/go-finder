@@ -55,6 +55,9 @@ type ConfigIndex struct {
 	DisableDefaultGroupBy bool
 	CTEs                  *[]string
 	Wheres                *[]squirrel.Sqlizer
+	// RawTotal supplies a caller-computed unfiltered total and skips finder's
+	// raw-total query. Nil preserves the existing behavior.
+	RawTotal *uint64
 
 	// PGInfo contains a map of table names
 	// each key will have string slice containing sorted columns
@@ -139,8 +142,12 @@ func IndexBuilder[T Model](
 		FromToCol:    c.FromToCol,
 		OverrideSort: c.OverrideSort,
 	}
-	if err := rawTotal(cf); err != nil {
-		return nil, err
+	if c.RawTotal == nil {
+		if err := rawTotal(cf); err != nil {
+			return nil, err
+		}
+	} else {
+		meta.RawTotal = *c.RawTotal
 	}
 	if err := find(cf); err != nil {
 		return nil, err
