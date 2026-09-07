@@ -10,6 +10,21 @@ import (
 
 var ErrNoSelectsSlice = errors.New("selects must be a pointer to a []string")
 
+func resolveIndexGroupBys(
+	tableName string,
+	groupBys *[]string,
+	disableDefault bool,
+) *[]string {
+	if groupBys != nil {
+		return groupBys
+	}
+	if disableDefault {
+		return &[]string{}
+	}
+
+	return &[]string{tableName + ".id"}
+}
+
 type ConfigIndex struct {
 	// Timezone modifies the timezone of filters on the FromToCol timestamp
 	// column values, the name is taken to be a location name corresponding to a
@@ -34,8 +49,12 @@ type ConfigIndex struct {
 	Joins    *[]string
 	Selects  *[]string
 	GroupBys *[]string
-	CTEs     *[]string
-	Wheres   *[]squirrel.Sqlizer
+	// DisableDefaultGroupBy prevents IndexBuilder from implicitly grouping by
+	// the model's id when GroupBys is nil. The default remains false for
+	// backwards compatibility. An explicitly supplied GroupBys still wins.
+	DisableDefaultGroupBy bool
+	CTEs                  *[]string
+	Wheres                *[]squirrel.Sqlizer
 
 	// PGInfo contains a map of table names
 	// each key will have string slice containing sorted columns
@@ -70,9 +89,11 @@ func IndexBuilder[T Model](
 	var indexResponse IndexResponse[T]
 
 	tableName := model.TableName()
-	if c.GroupBys == nil {
-		c.GroupBys = &[]string{tableName + ".id"}
-	}
+	c.GroupBys = resolveIndexGroupBys(
+		tableName,
+		c.GroupBys,
+		c.DisableDefaultGroupBy,
+	)
 	if c.Selects == nil {
 		return nil, ErrNoSelectsSlice
 	}

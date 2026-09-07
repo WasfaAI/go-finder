@@ -3,13 +3,10 @@ package finder
 import "context"
 
 func rawTotal(c *configFinder) error {
-	tableName := c.Model.TableName()
-	if c.GroupBys == nil {
-		c.GroupBys = &[]string{tableName + ".id"}
-	}
+	results := *c.Results
 	if c.GroupBys != nil {
 		if len(*c.GroupBys) > 0 {
-			*c.Results = c.Results.
+			results = results.
 				GroupBy(*c.GroupBys...)
 		}
 	}
@@ -17,7 +14,7 @@ func rawTotal(c *configFinder) error {
 	var total uint64
 	totalQuery, args, err := c.QB.
 		Select(`COUNT(*)`).
-		FromSelect(*c.Results, "results").
+		FromSelect(results, "results").
 		ToSql()
 	if err != nil {
 		return err
