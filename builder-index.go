@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"strings"
 
 	"github.com/Masterminds/squirrel"
 )
@@ -55,6 +56,10 @@ type ConfigIndex struct {
 	DisableDefaultGroupBy bool
 	CTEs                  *[]string
 	Wheres                *[]squirrel.Sqlizer
+	// FilterWheres applies caller-built filters after RawTotal is calculated.
+	// The filtered total and returned rows include these conditions, while the
+	// raw total continues to describe the base data set defined by Wheres.
+	FilterWheres *[]squirrel.Sqlizer
 	// RawTotal supplies a caller-computed unfiltered total and skips finder's
 	// raw-total query. Nil preserves the existing behavior.
 	RawTotal *uint64
@@ -81,6 +86,17 @@ type configFinder struct {
 	UrlQuery     *URLQuery
 	UrlValues    *url.Values
 	OverrideSort string
+}
+
+func hasIndexFilters(urlValues url.Values, c *ConfigIndex) bool {
+	if c.FilterWheres != nil && len(*c.FilterWheres) > 0 {
+		return true
+	}
+	if c.IsPublic || urlValues.Has("from") {
+		return true
+	}
+	return strings.TrimSpace(urlValues.Get("filters")) != "" ||
+		strings.TrimSpace(urlValues.Get("q")) != ""
 }
 
 func IndexBuilder[T Model](
@@ -149,30 +165,38 @@ func IndexBuilder[T Model](
 	} else {
 		meta.RawTotal = *c.RawTotal
 	}
+	if c.FilterWheres != nil {
+		for _, where := range *c.FilterWheres {
+			results = results.Where(where)
+		}
+	}
 	if err := find(cf); err != nil {
 		return nil, err
 	}
 
 	// getting total count of filtered result ---------------------------------
-	var total uint64
-	totalQuery, args, err := c.QB.
-		Select(`COUNT(*)`).
-		FromSelect(results, "results").
-		ToSql()
-	if err != nil {
-		return nil, err
+	meta.Total = meta.RawTotal
+	if hasIndexFilters(urlValues, c) {
+		var total uint64
+		totalQuery, args, err := c.QB.
+			Select(`COUNT(*)`).
+			FromSelect(results, "results").
+			ToSql()
+		if err != nil {
+			return nil, err
+		}
+		row := c.DB.QueryRowContext(context.Background(), totalQuery, args...)
+		if err := row.Scan(&total); err != nil {
+			total = 0
+		}
+		meta.Total = total
 	}
-	row := c.DB.QueryRowContext(context.Background(), totalQuery, args...)
-	if err := row.Scan(&total); err != nil {
-		total = 0
-	}
-	meta.Total = total
 
 	// choose to not paginate results -----------------------------------------
 	showAllResults := urlValues.Has("all")
 	if showAllResults {
 		cf.UrlQuery.Page = 1
-		cf.UrlQuery.Paginate = total
+		cf.UrlQuery.Paginate = meta.Total
 	}
 
 	// build meta and query the results ---------------------------------------
