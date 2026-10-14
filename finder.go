@@ -235,7 +235,13 @@ func find(c *configFinder) error { //nolint: gocyclo,maintidx // unavoidable
 	}
 
 	if c.OverrideSort != "" {
-		*c.Results = c.Results.OrderByClause(c.OverrideSort)
+		stableOverrideSort := appendStableSort(
+			c.OverrideSort,
+			tableName,
+			c.IDColumn,
+			c.Meta.Columns,
+		)
+		*c.Results = c.Results.OrderByClause(stableOverrideSort)
 	}
 
 	if c.GroupBys != nil {
