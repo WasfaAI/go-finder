@@ -29,6 +29,7 @@ func filterer(
 	filters, tableAlias string,
 	columns, groupBys *[]string,
 	relations *[]RelationField,
+	exprs map[string]string,
 ) []filterOp {
 	var filtersArr []filterOp
 
@@ -44,6 +45,8 @@ func filterer(
 			// done separately to avoid removing whitespace from values
 			pass := slices.Contains(*columns, filterArgs[0])
 			filterArgs[0] = strings.ReplaceAll(filterArgs[0], " ", "")
+			expr, isExpr := exprs[filterArgs[0]]
+			pass = pass || isExpr
 			partOfRelation := false
 			var currentRelation RelationField
 
@@ -97,9 +100,12 @@ func filterer(
 					// status:completed|cancelled|returned
 					filterArgs[0] = strings.ReplaceAll(filterArgs[0], " ", "")
 
-					if partOfRelation {
+					switch {
+					case isExpr:
+						currFilter.criteria = expr
+					case partOfRelation:
 						currFilter.criteria = filterArgs[0]
-					} else {
+					default:
 						currFilter.criteria = tableAlias + "." + filterArgs[0]
 					}
 
@@ -171,9 +177,12 @@ func filterer(
 						filterArgs[1] = "="
 					}
 
-					if partOfRelation {
+					switch {
+					case isExpr:
+						currFilter.criteria = expr
+					case partOfRelation:
 						currFilter.criteria = filterArgs[0]
-					} else {
+					default:
 						currFilter.criteria = tableAlias + "." + filterArgs[0]
 					}
 

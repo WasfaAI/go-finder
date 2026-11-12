@@ -59,6 +59,7 @@ func find(c *configFinder) error { //nolint: gocyclo,maintidx // unavoidable
 			c.Meta.Columns,
 			c.GroupBys,
 			c.Model.Relations(),
+			c.FilterExprs,
 		)
 
 		for _, v := range filters {

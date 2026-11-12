@@ -70,6 +70,8 @@ type ConfigIndex struct {
 
 	// OverrideSort used to write the OrderBy string directly
 	OverrideSort string
+
+	FilterExprs map[string]string
 }
 
 type configFinder struct {
@@ -86,6 +88,7 @@ type configFinder struct {
 	UrlQuery     *URLQuery
 	UrlValues    *url.Values
 	OverrideSort string
+	FilterExprs  map[string]string
 }
 
 func hasIndexFilters(urlValues url.Values, c *ConfigIndex) bool {
@@ -157,6 +160,7 @@ func IndexBuilder[T Model](
 		UrlValues:    &urlValues,
 		FromToCol:    c.FromToCol,
 		OverrideSort: c.OverrideSort,
+		FilterExprs:  c.FilterExprs,
 	}
 	if c.RawTotal == nil {
 		if err := rawTotal(cf); err != nil {
